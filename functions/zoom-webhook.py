@@ -9,7 +9,7 @@ from os import getenv as env
 from botocore.exceptions import ClientError
 
 import logging
-from common import setup_logging
+from common import setup_logging, timethis
 logger = logging.getLogger()
 
 DOWNLOAD_QUEUE_NAME = env('DOWNLOAD_QUEUE_NAME')
@@ -84,24 +84,25 @@ def handler(event, context):
         )
 
     lookup_retries = MEETING_LOOKUP_RETRIES
-    while True:
-        try:
-            logger.info("looking up meeting {}".format(payload['uuid']))
-            recording_data = get_recording_data(payload['uuid'])
-            break
-        except NoRecordingFound as e:
-            logger.error(e)
-        except MeetingLookupFailure as e:
-            logger.error(e)
-        except Exception:
-            raise
+    with timethis('get_recording_data', logger.info):
+        while True:
+            try:
+                logger.info("looking up meeting {}".format(payload['uuid']))
+                recording_data = get_recording_data(payload['uuid'])
+                break
+            except NoRecordingFound as e:
+                logger.error(e)
+            except MeetingLookupFailure as e:
+                logger.error(e)
+            except Exception:
+                raise
 
-        if lookup_retries > 0:
-            lookup_retries -= 1
-            logger.info("retrying. {} retries left".format(lookup_retries))
-            time.sleep(MEETING_LOOKUP_RETRY_DELAY)
-        else:
-            return resp_400("Meeting lookup retries exhausted: {}")
+            if lookup_retries > 0:
+                lookup_retries -= 1
+                logger.info("retrying. {} retries left".format(lookup_retries))
+                time.sleep(MEETING_LOOKUP_RETRY_DELAY)
+            else:
+                return resp_400("Meeting lookup retries exhausted: {}")
 
     try:
         if not verify_status(recording_data):
@@ -111,7 +112,8 @@ def handler(event, context):
         return resp_400("Failed to parse Zoom API response")
           
     try:
-        recording_data.update(get_host_data(payload['host_id']))
+        with timethis('get_host_data', logger.info):
+            recording_data.update(get_host_data(payload['host_id']))
     except Exception as e:
         return resp_400(repr(e))
 
