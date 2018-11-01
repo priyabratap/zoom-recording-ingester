@@ -8,24 +8,23 @@ import datetime
 from urllib.parse import urlencode
 from invoke import task, Collection
 from invoke.exceptions import Exit
-from os import symlink, getenv as env
-from dotenv import load_dotenv
+from os import symlink
 from os.path import join, dirname, exists
 from tabulate import tabulate
-from pprint import pprint
 from functions.common import gen_token
 import requests
 from pytz import timezone
 from multiprocessing import Process
+from pprint import pprint
+import dce_params.tasks as dce_params
 
-load_dotenv(join(dirname(__file__), '.env'))
 
 AWS_ACCOUNT_ID = None
-AWS_PROFILE = env('AWS_PROFILE')
-AWS_DEFAULT_REGION = env('AWS_DEFAULT_REGION', 'us-east-1')
-STACK_NAME = env('STACK_NAME')
+AWS_PROFILE = None
+STACK_NAME = dce_params.get_name()
+STACK_PARAMETERS = json.loads(dce_params.get_value())
 PROD_IDENTIFIER = "prod"
-NONINTERACTIVE = env('NONINTERACTIVE')
+
 
 FUNCTION_NAMES = [
     'zoom-webhook',
@@ -33,6 +32,7 @@ FUNCTION_NAMES = [
     'zoom-uploader',
     'zoom-log-notifications'
 ]
+
 
 if AWS_PROFILE is not None:
     boto3.setup_default_session(profile_name=AWS_PROFILE)
@@ -59,7 +59,7 @@ def production_failsafe(ctx):
     It is meant to be prepended to the execution of other tasks to force a confirmation
     when a task is being executed that could have an impact on a production stack
     """
-    if not NONINTERACTIVE and PROD_IDENTIFIER in STACK_NAME.lower():
+    if not getenv('NONINTERACTIVE') and PROD_IDENTIFIER in STACK_NAME.lower():
         print("You are about to run this task on a production system")
         ok = input('are you sure? [y/N] ').lower().strip().startswith('y')
         if not ok:
@@ -77,7 +77,7 @@ def codebuild(ctx, revision):
            " --environment-variables-override"
            " name='STACK_NAME',value={},type=PLAINTEXT"
            " name='LAMBDA_RELEASE_ALIAS',value={},type=PLAINTEXT"
-           " name='NONINTERACTIVE',value=1" ) \
+           " name='NONINTERACTIVE',value=1") \
         .format(
             profile_arg(),
             STACK_NAME,
@@ -554,19 +554,24 @@ logs_ns.add_task(logs_uploader, 'uploader')
 logs_ns.add_task(recording)
 ns.add_collection(logs_ns)
 
+ns.add_collection(dce_params.params)
+
 ###############################################################################
 
 
-def getenv(var, required=True):
-    val = env(var)
+def getenv(var, default=None, required=True):
+    val = STACK_PARAMETERS[var] if var in STACK_PARAMETERS else None
     if val is not None and val.strip() == '':
         val = None
+    if val is None:
+        val = default
     if required and val is None:
         raise Exit("{} not defined".format(var))
     return val
 
 
 def profile_arg():
+    AWS_PROFILE = getenv('AWS_PROFILE', required=False)
     if AWS_PROFILE is not None:
         return "--profile {}".format(AWS_PROFILE)
     return ""
@@ -661,7 +666,7 @@ def __create_or_update(ctx, op):
                 stack_tags(),
                 STACK_NAME,
                 template_path,
-                getenv("LAMBDA_CODE_BUCKET"),
+                getenv('LAMBDA_CODE_BUCKET'),
                 getenv("NOTIFICATION_EMAIL"),
                 getenv("ZOOM_API_BASE_URL"),
                 getenv("ZOOM_API_KEY"),
@@ -1063,12 +1068,25 @@ def __schedule_json_to_dynamo(json_name):
     table_name = STACK_NAME + '-schedule'
     table = dynamodb.Table(table_name)
 
+    current_entries = table.scan()
+
+    if table.item_count > 0:
+        primary_key = table.key_schema[0]['AttributeName']
+
+        for entry in current_entries['Items']:
+            key_object = {primary_key: entry[primary_key]}
+            table.delete_item(
+                Key=key_object
+            )
+
     file = open(json_name, "r")
 
     classes = json.load(file)
 
     for item in classes.values():
         table.put_item(Item=item)
+
+    pprint(classes)
 
     file.close()
 
@@ -1087,7 +1105,9 @@ def __show_webhook_endpoint(ctx):
            "--output text").format(profile_arg(), STACK_NAME)
     rest_api_id = ctx.run(cmd, hide=True).stdout.strip()
     invoke_url = "https://{}.execute-api.{}.amazonaws.com/{}/new_recording" \
-        .format(rest_api_id, AWS_DEFAULT_REGION, getenv("LAMBDA_RELEASE_ALIAS"))
+        .format(rest_api_id,
+                getenv('AWS_DEFAULT_REGION', 'us-east-1'),
+                getenv("LAMBDA_RELEASE_ALIAS"))
 
     print(tabulate([["Webhook Endpoint", invoke_url]], tablefmt="grid"))
 
