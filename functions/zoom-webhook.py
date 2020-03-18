@@ -1,9 +1,10 @@
 import json
+import boto3
 from os import getenv as env
-from common import setup_logging, TIMESTAMP_FORMAT
 from datetime import datetime
 from pytz import timezone
-import boto3
+from common import setup_logging, TIMESTAMP_FORMAT, \
+    pipeline_states, set_pipeline_state
 
 import logging
 logger = logging.getLogger()
@@ -80,6 +81,10 @@ def handler(event, context):
 
     try:
         validate_payload(payload)
+        set_pipeline_state(
+            payload["object"]["uuid"],
+            pipeline_states.WEBHOOK_RECEIVED
+        )
     except BadWebhookData as e:
         return resp_400("Bad data: {}".format(str(e)))
     except NoMp4Files as e:
@@ -97,6 +102,7 @@ def handler(event, context):
     else:
         send_sqs_message(sqs_message)
 
+    set_pipeline_state(sqs_message["uuid"], pipeline_states.SENT_TO_DOWNLOADER)
     return {
         "statusCode": 200,
         "headers": {},

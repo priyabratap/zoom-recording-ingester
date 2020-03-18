@@ -2,7 +2,8 @@ import json
 import requests
 from os import getenv as env
 from urllib.parse import urlparse, parse_qs
-from common import setup_logging, zoom_api_request
+from common import setup_logging, zoom_api_request, \
+    set_pipeline_state, pipeline_states
 
 import logging
 logger = logging.getLogger()
@@ -65,6 +66,7 @@ def handler(event, context):
         uuid = query_params["meeting_id"][0]
 
     logger.info("Got recording uuid: '{}'".format(uuid))
+    set_pipeline_state(uuid, pipeline_states.ON_DEMAND_RECEIVED)
 
     try:
         try:
@@ -127,5 +129,6 @@ def handler(event, context):
         )
         return resp(500, err_msg);
 
+    set_pipeline_state(uuid, pipeline_states.SENT_TO_WEBHOOK)
     return resp(200, "Ingest accepted")
 

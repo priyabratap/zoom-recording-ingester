@@ -161,7 +161,7 @@ class TestHandler(unittest.TestCase):
 
         self.mocker.patch.object(downloader.Download, "upload_to_s3")
 
-        mock_upload_msg = {"mock_upload_message": 1234}
+        mock_upload_msg = {"mock_upload_message": 1234, "uuid": "abcde-12345"}
         self.mocker.patch.object(
             downloader.Download,
             "send_to_uploader_queue",

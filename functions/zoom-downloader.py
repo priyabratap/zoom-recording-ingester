@@ -2,13 +2,14 @@ import boto3
 import json
 import requests
 from os import getenv as env
-from common import setup_logging, zoom_api_request, TIMESTAMP_FORMAT
 import subprocess
 from pytz import timezone
 from datetime import datetime
 from collections import OrderedDict
-import logging
+from common import setup_logging, zoom_api_request, TIMESTAMP_FORMAT, \
+    set_pipeline_state, pipeline_states
 
+import logging
 logger = logging.getLogger()
 
 ZOOM_VIDEOS_BUCKET = env("ZOOM_VIDEOS_BUCKET")
@@ -61,7 +62,16 @@ def handler(event, context):
             return
 
         dl_data = json.loads(download_message.body)
+
+        # using .get("uuid") here because otherwise a bunch of tests fail that
+        # need to be fixed so they fail earlier. i.e. tests should not assume
+        # something without a "uuid" value should make it this far
+        # far without a uuid value even in a test context
+        set_pipeline_state(dl_data.get("uuid"),
+                           pipeline_states.DOWNLOADER_RECIEVED)
+
         dl = Download(sqs, dl_data)
+
         if dl.oc_series_found(ignore_schedule, override_series_id):
             # process matched recording, don't discared message until after
             break
@@ -89,6 +99,7 @@ def handler(event, context):
 
     # send a message to the opencast uploader
     message = dl.send_to_uploader_queue()
+    set_pipeline_state(message["uuid"], pipeline_states.SENT_TO_UPLOADER)
     download_message.delete()
     logger.info({"sqs_message": message})
 
