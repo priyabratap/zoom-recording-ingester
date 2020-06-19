@@ -21,6 +21,7 @@ from functions.common import zoom_api_request
 from pytz import timezone
 from multiprocessing import Process
 from urllib.parse import urlparse, quote
+from google_spreadsheet import Spreadsheet
 
 # suppress warnings for cases where we want to ingore dev cluster dummy certificates
 import urllib3
@@ -624,7 +625,7 @@ def view_uploads(ctx, limit=20):
 
 
 @task(pre=[production_failsafe])
-def import_dce_schedule_from_opencast(ctx, endpoint=None):
+def import_schedule_from_opencast(ctx, endpoint=None):
     """
     Fetch schedule data from Opencast series endpoint
     """
@@ -710,64 +711,16 @@ def import_dce_schedule_from_opencast(ctx, endpoint=None):
 
 
 @task(pre=[production_failsafe])
-def import_fas_schedule_from_csv(ctx, filepath):
-    valid_days = ["M", "T", "W", "R", "F"]
+def import_schedule_from_csv(ctx, filepath):
+    __import_schedule_from_csv(ctx, filepath)
 
-    # make it so we can use lower-case keys in our row dicts;
-    # there are lots of ways this spreadsheet data import could go wrong and
-    # this is only one, but we do what we can.
-    def lower_case_first_line(iter):
-        header = next(iter).lower()
-        return itertools.chain([header], iter)
 
-    with open(filepath, "r") as f:
-        reader = csv.DictReader(lower_case_first_line(f))
-        rows = list(reader)
+@task(pre=[production_failsafe])
+def import_schedule_from_gsheets(ctx, sheet_name):
+    spreadsheet_id = env("SCHEDULE_SPREADSHEET_ID")
+    output_file = Spreadsheet(spreadsheet_id).download_sheet_to_csv(sheet_name)
 
-    schedule_data = {}
-    for row in rows:
-
-        try:
-            zoom_link = urlparse(row["meeting id with password"])
-            assert zoom_link.scheme.startswith("https")
-        except AssertionError:
-            zoom_link = None
-
-        if zoom_link is None:
-            print("Invalid zoom link value for {}: {}" \
-                  .format(row["course code"], zoom_link))
-            continue
-
-        zoom_series_id = zoom_link.path.split("/")[-1]
-        schedule_data.setdefault(zoom_series_id, {})
-        schedule_data[zoom_series_id]["zoom_series_id"] = zoom_series_id
-
-        opencast_series_id = urlparse(row["oc series"]) \
-            .fragment.replace("/", "")
-        schedule_data[zoom_series_id]["opencast_series_id"] = opencast_series_id
-
-        subject = "{} - {}".format(row["course code"], row["type"])
-        schedule_data[zoom_series_id]["opencast_subject"] = subject
-        
-        schedule_data[zoom_series_id].setdefault("Days", set())
-        for day in row["day"].strip():
-            if day not in valid_days:
-                raise Exit("Got bad day value: {}".format(letter))
-            schedule_data[zoom_series_id]["Days"].add(day)
-
-        schedule_data[zoom_series_id].setdefault("Time", set())
-        time_object = datetime.strptime(row["start"], "%H:%M")
-        schedule_data[zoom_series_id]["Time"].update([
-            datetime.strftime(time_object, "%H:%M"),
-            (time_object + timedelta(minutes=30)).strftime("%H:%M"),
-            (time_object + timedelta(hours=1)).strftime("%H:%M")
-        ])
-
-    for id, item in schedule_data.items():
-        item["Days"] = list(item["Days"])
-        item["Time"] = list(item["Time"])
-
-    __schedule_json_to_dynamo(ctx, schedule_data=schedule_data)
+    __import_schedule_from_csv(ctx, output_file)
 
 
 @task
@@ -869,8 +822,9 @@ queue_ns.add_task(retry_uploads, 'retry-uploads')
 ns.add_collection(queue_ns)
 
 schedule_ns = Collection('schedule')
-schedule_ns.add_task(import_dce_schedule_from_opencast, 'dce-import')
-schedule_ns.add_task(import_fas_schedule_from_csv, 'fas-import')
+schedule_ns.add_task(import_schedule_from_opencast, 'opencast-import')
+schedule_ns.add_task(import_schedule_from_csv, 'csv-import')
+schedule_ns.add_task(import_schedule_from_gsheets, 'gsheets-import')
 ns.add_collection(schedule_ns)
 
 logs_ns = Collection('logs')
@@ -1436,6 +1390,66 @@ def __view_messages(queue_url, limit):
             if 'MessageAttributes' in message and 'FailedReason' in message['MessageAttributes']:
                 print("{}: {}".format('ReportedError', message['MessageAttributes']['FailedReason']['StringValue']))
             print()
+
+
+def __import_schedule_from_csv(ctx, filepath):
+    valid_days = ["M", "T", "W", "R", "F"]
+
+    # make it so we can use lower-case keys in our row dicts;
+    # there are lots of ways this spreadsheet data import could go wrong and
+    # this is only one, but we do what we can.
+    def lower_case_first_line(iter):
+        header = next(iter).lower()
+        return itertools.chain([header], iter)
+
+    with open(filepath, "r") as f:
+        reader = csv.DictReader(lower_case_first_line(f))
+        rows = list(reader)
+
+    schedule_data = {}
+    for row in rows:
+
+        try:
+            zoom_link = urlparse(row["meeting id with password"])
+            assert zoom_link.scheme.startswith("https")
+        except AssertionError:
+            zoom_link = None
+
+        if zoom_link is None:
+            print("Invalid zoom link value for {}: {}"
+                  .format(row["course code"], zoom_link))
+            continue
+
+        zoom_series_id = zoom_link.path.split("/")[-1]
+        schedule_data.setdefault(zoom_series_id, {})
+        schedule_data[zoom_series_id]["zoom_series_id"] = zoom_series_id
+
+        opencast_series_id = urlparse(row["oc series"]) \
+            .fragment.replace("/", "")
+        schedule_data[zoom_series_id]["opencast_series_id"] = opencast_series_id
+
+        subject = "{} - {}".format(row["course code"], row["type"])
+        schedule_data[zoom_series_id]["opencast_subject"] = subject
+
+        schedule_data[zoom_series_id].setdefault("Days", set())
+        for day in row["day"].strip():
+            if day not in valid_days:
+                raise Exit("Got bad day value: {}".format(letter))
+            schedule_data[zoom_series_id]["Days"].add(day)
+
+        schedule_data[zoom_series_id].setdefault("Time", set())
+        time_object = datetime.strptime(row["start"], "%H:%M")
+        schedule_data[zoom_series_id]["Time"].update([
+            datetime.strftime(time_object, "%H:%M"),
+            (time_object + timedelta(minutes=30)).strftime("%H:%M"),
+            (time_object + timedelta(hours=1)).strftime("%H:%M")
+        ])
+
+    for id, item in schedule_data.items():
+        item["Days"] = list(item["Days"])
+        item["Time"] = list(item["Time"])
+
+    __schedule_json_to_dynamo(ctx, schedule_data=schedule_data)
 
 
 def __schedule_json_to_dynamo(ctx, json_file=None, schedule_data=None):

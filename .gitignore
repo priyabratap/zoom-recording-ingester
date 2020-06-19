@@ -1,4 +1,4 @@
-.env
+.env*
 dist/
 *.zip
 __pycache__
@@ -6,3 +6,5 @@ __pycache__
 .tox/
 outfile.txt
 .coverage
+*credentials.json
+venv/
