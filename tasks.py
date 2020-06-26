@@ -394,7 +394,7 @@ def exec_downloader(ctx, series_id=None, ignore_schedule=False, qualifier=None):
     if not qualifier:
         qualifier = getenv('LAMBDA_RELEASE_ALIAS')
 
-    cmd = ("aws lambda invoke --function-name='{}-zoom-downloader-function' "
+    cmd = ("aws lambda invoke --function-name='{}-zoom-downloader' "
             "--payload='{}' --qualifier {} output.txt").format(
         STACK_NAME,
         json.dumps(payload),
@@ -418,7 +418,7 @@ def exec_uploader(ctx, qualifier=None):
     if qualifier is None:
         qualifier = getenv('LAMBDA_RELEASE_ALIAS')
 
-    cmd = ("aws lambda invoke --function-name='{}-zoom-uploader-function' "
+    cmd = ("aws lambda invoke --function-name='{}-zoom-uploader' "
            "--qualifier {} outfile.txt").format(STACK_NAME, qualifier)
 
     print(cmd)
@@ -694,7 +694,7 @@ def logs(ctx, function=None, watch=False):
 
     procs = []
     for func in functions:
-        group = "/aws/lambda/{}-{}-function".format(STACK_NAME, func)
+        group = "/aws/lambda/{}-{}".format(STACK_NAME, func)
         procs.append(
             Process(target=_awslogs, name=func, args=(group, watch))
         )
@@ -875,7 +875,7 @@ def __invoke_api(ctx, endpoint, event_body):
 
 def __update_release_alias(ctx, func, version, description):
     print("Setting {} '{}' alias to version {}".format(func, getenv('LAMBDA_RELEASE_ALIAS'), version))
-    lambda_function_name = "{}-{}-function".format(STACK_NAME, func)
+    lambda_function_name = "{}-{}".format(STACK_NAME, func)
     if description is None:
         description = "''"
     alias_cmd = ("aws {} lambda update-alias --function-name {} "
@@ -894,7 +894,7 @@ def __update_release_alias(ctx, func, version, description):
 def __publish_version(ctx, func, description):
 
     print("Publishing new version of {}".format(func))
-    lambda_function_name = "{}-{}-function".format(STACK_NAME, func)
+    lambda_function_name = "{}-{}".format(STACK_NAME, func)
     if description is None:
         description = "''"
     version_cmd = ("aws {} lambda publish-version --function-name {} "
@@ -948,7 +948,7 @@ def __build_function(ctx, func, upload_to_s3=False):
 
 
 def __update_function(ctx, func):
-    lambda_function_name = "{}-{}-function".format(STACK_NAME, func)
+    lambda_function_name = "{}-{}".format(STACK_NAME, func)
     zip_path = join(dirname(__file__), 'dist', func + '.zip')
 
     if not exists(zip_path):
@@ -966,7 +966,7 @@ def __update_function(ctx, func):
 
 def __set_debug(ctx, debug_val):
     for func in ['zoom-webhook', 'zoom-downloader', 'zoom-uploader']:
-        func_name = "{}-{}-function".format(STACK_NAME, func)
+        func_name = "{}-{}".format(STACK_NAME, func)
         cmd = ("aws {} lambda get-function-configuration --output json "
                "--function-name {}").format(profile_arg(), func_name)
         res = ctx.run(cmd, hide=1)
@@ -1215,7 +1215,7 @@ def __show_function_status(ctx):
 
     for func in FUNCTION_NAMES:
 
-        lambda_function_name = "{}-{}-function".format(STACK_NAME, func)
+        lambda_function_name = "{}-{}".format(STACK_NAME, func)
         cmd = ("aws {} lambda list-aliases --function-name {} "
                "--query \"Aliases[?Name=='{}'].[FunctionVersion,Description]\" "
                "--output text") \
@@ -1299,7 +1299,7 @@ def __find_recording_log_events(ctx, function, uuid):
     else:
         return
 
-    log_group = '/aws/lambda/{}-{}-function'.format(STACK_NAME, function)
+    log_group = '/aws/lambda/{}-{}'.format(STACK_NAME, function)
 
     for log_stream, request_id in __request_ids_from_logs(ctx, log_group, filter_pattern):
 
