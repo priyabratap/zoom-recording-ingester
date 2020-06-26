@@ -66,27 +66,31 @@ class ZipApi(core.Construct):
 
     def add_monitoring(self, monitoring):
 
-        for metric_name in ["4XXError", "5XXError"]:
-            for resource in [self.new_recording_resource, self.ingest_resource]:
-                construct_id = f"{metric_name}-{resource.path.replace('/', '_')}-alarm"
-                alarm = cloudwatch.Alarm(self, construct_id,
-                    metric=cloudwatch.Metric(
-                        metric_name=metric_name,
-                        namespace="AWS/ApiGateway",
-                        dimensions={
-                            "ApiName": self.rest_api_name,
-                            "Stage": "live",
-                            "Method": "POST",
-                            "Resource": resource.path,
-                        },
-                        period=core.Duration.minutes(1)
-                    ),
-                    statistic="sum",
-                    threshold=1,
-                    evaluation_periods=1,
-                    comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD
-                )
-                monitoring.add_alarm_action(alarm)
+        resource_metrics = [
+            (self.new_recording_resource, "4XXError"),
+            (self.new_recording_resource, "5XXError"),
+            (self.ingest_resource, "5XXError")
+        ]
+        for resource, metric_name in resource_metrics:
+            construct_id = f"{metric_name}-{resource.path.replace('/', '_')}-alarm"
+            alarm = cloudwatch.Alarm(self, construct_id,
+                metric=cloudwatch.Metric(
+                    metric_name=metric_name,
+                    namespace="AWS/ApiGateway",
+                    dimensions={
+                        "ApiName": self.rest_api_name,
+                        "Stage": "live",
+                        "Method": "POST",
+                        "Resource": resource.path,
+                    },
+                    period=core.Duration.minutes(1)
+                ),
+                statistic="sum",
+                threshold=1,
+                evaluation_periods=1,
+                comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD
+            )
+            monitoring.add_alarm_action(alarm)
 
         webhook_latency_alarm = cloudwatch.Alarm(self, "WebhookLatencyAlarm",
             metric=cloudwatch.Metric(
