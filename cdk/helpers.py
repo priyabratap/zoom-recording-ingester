@@ -64,6 +64,4 @@ def oc_base_url():
     return "http://" + dns_name.strip()
 
 def aws_account_id():
-    sts = boto3.client('sts')
-    caller_id = sts.get_caller_identity()
-    return caller_id["Account"]
+    return boto3.client('sts').get_caller_identity()['Account']

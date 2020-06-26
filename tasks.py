@@ -21,6 +21,7 @@ from pprint import pprint
 from functions.common import zoom_api_request
 from multiprocessing import Process
 from urllib.parse import urlparse, quote
+from functools import lru_cache
 
 # supress warnings for cases where we want to ingore dev cluster dummy certificates
 import urllib3
@@ -29,7 +30,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 dotenv_path = Path('.') / '.env'
 load_dotenv(dotenv_path, override=True)
 
-AWS_ACCOUNT_ID = None
 AWS_PROFILE = env('AWS_PROFILE')
 AWS_DEFAULT_REGION = env('AWS_DEFAULT_REGION', 'us-east-1')
 STACK_NAME = env('STACK_NAME')
@@ -50,15 +50,14 @@ FUNCTION_NAMES = [
 if AWS_PROFILE is not None:
     boto3.setup_default_session(profile_name=AWS_PROFILE)
 
+@lru_cache()
+def get_account_id():
+    return boto3.client('sts').get_caller_identity()['Account']
 
 def get_queue_url(queue_name):
 
-    global AWS_ACCOUNT_ID
-    if AWS_ACCOUNT_ID is None:
-        AWS_ACCOUNT_ID = boto3.client('sts').get_caller_identity()['Account']
-
     queue_url = 'https://queue.amazonaws.com/{}/{}-{}'.format(
-        AWS_ACCOUNT_ID,
+        get_account_id(),
         STACK_NAME,
         queue_name
     )
@@ -245,7 +244,7 @@ def generate_resource_policy(ctx):
     for s in resource_policy["Statement"]:
         s["Resource"] = s["Resource"].format(
             region=AWS_DEFAULT_REGION,
-            account=account_id(ctx),
+            account=get_account_id(),
             api_id=api_id
         )
 
@@ -819,14 +818,6 @@ def oc_host(ctx, layer_name):
             layer_name.lower().capitalize()
         )
 
-    res = ctx.run(cmd, hide=1)
-    return res.stdout.strip()
-
-
-def account_id(ctx):
-
-    cmd = ("aws {} sts get-caller-identity "
-           "--query 'Account' --output text").format(profile_arg())
     res = ctx.run(cmd, hide=1)
     return res.stdout.strip()
 
