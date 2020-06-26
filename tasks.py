@@ -54,6 +54,15 @@ if AWS_PROFILE is not None:
 def get_account_id():
     return boto3.client('sts').get_caller_identity()['Account']
 
+@lru_cache()
+def get_cfn_outputs():
+    stack = boto3.resource('cloudformation').Stack(STACK_NAME)
+    outputs = {
+        x["ExportName"]: x["OutputValue"]
+        for x in stack.outputs
+    }
+    return outputs
+
 def get_queue_url(queue_name):
 
     queue_url = 'https://queue.amazonaws.com/{}/{}-{}'.format(
@@ -1253,10 +1262,10 @@ def __show_sqs_status(ctx):
     ]
 
     queue_names = [
-        'uploads.fifo',
-        'uploads-deadletter.fifo',
-        'downloads',
-        'downloads-deadletter'
+        'upload.fifo',
+        'upload-dlq.fifo',
+        'download',
+        'download-dlq'
     ]
 
     for queue_name in queue_names:
