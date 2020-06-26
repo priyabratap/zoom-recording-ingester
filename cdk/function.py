@@ -9,8 +9,7 @@ from aws_cdk import (
 class ZipFunction(core.Construct):
 
     def __init__(self, scope: core.Construct, id: str,
-                 function_name,
-                 handler,
+                 name,
                  lambda_code_bucket,
                  environment,
                  timeout=30,
@@ -22,19 +21,19 @@ class ZipFunction(core.Construct):
         environment = {key: str(val) for key,val in environment.items() if val}
 
         function_props = {
-            "function_name": function_name,
+            "function_name": f"{self.stack_name}-{name}",
             "runtime": aws_lambda.Runtime.PYTHON_3_8,
             "code": aws_lambda.Code.from_bucket(
                 bucket=lambda_code_bucket,
-                key=f"{self.stack_name}/{function_name}.zip"
+                key=f"{self.stack_name}/{name}.zip"
             ),
-            "handler": handler,
+            "handler": f"{name}.handler",
             "timeout": core.Duration.seconds(timeout),
             "environment": environment
         }
 
         if vpc_id is not None and security_group_id is not None:
-            opencast_vpc = ec2.Vpc.from_lookup(self, "OpencastVpc", vpc_id=vpc_id),
+            opencast_vpc = ec2.Vpc.from_lookup(self, "OpencastVpc", vpc_id=vpc_id)
             opencast_security_group = ec2.SecurityGroup.from_security_group_id(
                 self, "OpencastSecurityGroup", security_group_id=security_group_id
             )

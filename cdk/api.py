@@ -60,15 +60,16 @@ class ZipApi(core.Construct):
 
         on_demand_function.add_environment(
             "WEBHOOK_ENDPOINT_URL",
-            (f"https://{self.api.rest_api_id}.execute-api.{self.region}"
-             f".amazonaws.com/{self.lambda_release_alias}/new_recording")
+            (f"https://{self.api.rest_api_id}.execute-api.{core.Stack.of(self).region}"
+             f".amazonaws.com/live/new_recording")
         )
 
     def add_monitoring(self, monitoring):
 
         for metric_name in ["4XXError", "5XXError"]:
             for resource in [self.new_recording_resource, self.ingest_resource]:
-                alarm = cloudwatch.Alarm(self, f"{metric_name}Alarm",
+                construct_id = f"{metric_name}-{resource.path.replace('/', '_')}-alarm"
+                alarm = cloudwatch.Alarm(self, construct_id,
                     metric=cloudwatch.Metric(
                         metric_name=metric_name,
                         namespace="AWS/ApiGateway",

@@ -64,8 +64,7 @@ class ZipStack(core.Stack):
         schedule = ZipSchedule(self, "Schedule")
 
         on_demand = ZipOnDemandFunction(self, "OnDemandFunction",
-            function_name=f"{self.stack_name}-on-demand-function",
-            handler="zoom-on-demand.handler",
+            name="zoom-on-demand",
             lambda_code_bucket=lambda_code_bucket,
             environment={
                 "ZOOM_API_KEY": zoom_api_key,
@@ -74,8 +73,7 @@ class ZipStack(core.Stack):
         )
 
         webhook = ZipWebhookFunction(self, "WebhookFunction",
-            function_name=f"{self.stack_name}-webhook-function",
-            handler="zoom-webhook.handler",
+            name="zoom-webhook",
             lambda_code_bucket=lambda_code_bucket,
             environment={
                 "DOWNLOAD_QUEUE_NAME": queues.download_queue.queue_name,
@@ -90,8 +88,7 @@ class ZipStack(core.Stack):
         # downloader lambda checks for matches with the course schedule
         # and uploads matching recordings to S3
         downloader = ZipDownloaderFunction(self, "DownloadFunction",
-            function_name=f"{self.stack_name}-downloader-function",
-            handler="zoom-downloader.handler",
+            name="zoom-downloader",
             lambda_code_bucket = lambda_code_bucket,
             timeout=900,
             environment={
@@ -117,16 +114,14 @@ class ZipStack(core.Stack):
         recordings_bucket.bucket.grant_write(downloader.function)
 
         op_counts = ZipOpCountsFunction(self, 'OpCountsFunction',
-            function_name=f"{self.stack_name}-opencast-op-counts",
-            handler="opencast-op-counts.handler",
+            name="opencast-op-counts",
             lambda_code_bucket = lambda_code_bucket,
             environment={}
         )
 
         # uploader lambda uploads recordings to opencast
         uploader = ZipUploaderFunction(self, 'UploaderFunction',
-            function_name=f"{self.stack_name}-uploader",
-            handler="zoom-uploader.handler",
+            name="zoom-uploader",
             lambda_code_bucket=lambda_code_bucket,
             timeout=300,
             vpc_id=oc_vpc_id,
@@ -156,24 +151,23 @@ class ZipStack(core.Stack):
         recordings_bucket.bucket.grant_read(uploader.function)
 
         log_notify = ZipLogNotificationsFunction(self, 'LogNotificationFunction',
-            function_name=f"{self.stack_name}-log-notify",
-            handler="zoom-log-notifications.handler",
+            name="zoom-log-notifications",
             lambda_code_bucket=lambda_code_bucket,
             environment={}
         )
 
         api = ZipApi(self, "RestApi",
-            on_demand_function=on_demand,
-            webhook_function=webhook
+            on_demand_function=on_demand.function,
+            webhook_function=webhook.function
         )
 
         download_event = ZipEvent(self, "DownloadEvent",
-            function=downloader,
+            function=downloader.function,
             event_rate=downloader_event_rate
         )
 
         uploader_event = ZipEvent(self, "UploadEvent",
-            function=uploader,
+            function=uploader.function,
             event_rate=uploader_event_rate
         )
 

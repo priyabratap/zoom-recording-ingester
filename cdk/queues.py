@@ -52,6 +52,7 @@ class ZipQueues(core.Construct):
             statistic="sum",
             threshold=40,
             period=core.Duration.minutes(5),
+            evaluation_periods=1,
             comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD
         )
         monitoring.add_alarm_action(upload_queue_alarm)
