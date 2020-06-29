@@ -15,19 +15,18 @@ from invoke.exceptions import Exit
 from os import symlink, getenv as env
 from dotenv import load_dotenv
 from os.path import join, dirname, exists, relpath
-from pathlib import Path
 from tabulate import tabulate
 from pprint import pprint
 from functions.common import zoom_api_request
 from multiprocessing import Process
 from urllib.parse import urlparse, quote
-from functools import lru_cache
+from cdk.helpers import aws_account_id
 
 # supress warnings for cases where we want to ingore dev cluster dummy certificates
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-dotenv_path = Path('.') / '.env'
+dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path, override=True)
 
 AWS_PROFILE = env('AWS_PROFILE')
@@ -50,23 +49,11 @@ FUNCTION_NAMES = [
 if AWS_PROFILE is not None:
     boto3.setup_default_session(profile_name=AWS_PROFILE)
 
-@lru_cache()
-def get_account_id():
-    return boto3.client('sts').get_caller_identity()['Account']
-
-@lru_cache()
-def get_cfn_outputs():
-    stack = boto3.resource('cloudformation').Stack(STACK_NAME)
-    outputs = {
-        x["ExportName"]: x["OutputValue"]
-        for x in stack.outputs
-    }
-    return outputs
 
 def get_queue_url(queue_name):
 
     queue_url = 'https://queue.amazonaws.com/{}/{}-{}'.format(
-        get_account_id(),
+        aws_account_id(),
         STACK_NAME,
         queue_name
     )
@@ -253,7 +240,7 @@ def generate_resource_policy(ctx):
     for s in resource_policy["Statement"]:
         s["Resource"] = s["Resource"].format(
             region=AWS_DEFAULT_REGION,
-            account=get_account_id(),
+            account=aws_account_id(),
             api_id=api_id
         )
 
@@ -444,7 +431,6 @@ def status(ctx):
     Show table of CloudFormation stack details
     """
     __show_stack_status(ctx)
-    __show_webhook_endpoint(ctx)
     __show_function_status(ctx)
     __show_sqs_status(ctx)
 
@@ -1183,22 +1169,6 @@ def __show_stack_status(ctx):
            "--stack-name {} --output table"
            .format(profile_arg(), STACK_NAME))
     ctx.run(cmd)
-
-
-def __show_webhook_endpoint(ctx):
-
-    cmd = ("aws {} cloudformation describe-stack-resources --stack-name {} "
-           "--query \"StackResources[?ResourceType=='AWS::ApiGateway::RestApi'].PhysicalResourceId\" "
-           "--output text").format(profile_arg(), STACK_NAME)
-    rest_api_id = ctx.run(cmd, hide=True).stdout.strip()
-
-    webhook_url = "https://{}.execute-api.{}.amazonaws.com/{}/new_recording" \
-        .format(rest_api_id, AWS_DEFAULT_REGION, getenv("LAMBDA_RELEASE_ALIAS"))
-    print(tabulate([["Webhook Endpoint", webhook_url]], tablefmt="grid"))
-
-    on_demand_url = "https://{}.execute-api.{}.amazonaws.com/{}/ingest" \
-        .format(rest_api_id, AWS_DEFAULT_REGION, getenv("LAMBDA_RELEASE_ALIAS"))
-    print(tabulate([["On-Demand Endpoint", on_demand_url]], tablefmt="grid"))
 
 
 def __show_function_status(ctx):
