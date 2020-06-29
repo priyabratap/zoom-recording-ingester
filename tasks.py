@@ -377,7 +377,7 @@ def exec_downloader(ctx, series_id=None, ignore_schedule=False, qualifier=None):
     Manually trigger downloader.
     """
 
-    if queue_is_empty(ctx, "downloads"):
+    if queue_is_empty(ctx, "download"):
         print("No downloads in queue")
         return
 
@@ -406,7 +406,7 @@ def exec_uploader(ctx, qualifier=None):
     """
     Manually trigger uploader.
     """
-    if queue_is_empty(ctx, "uploads.fifo"):
+    if queue_is_empty(ctx, "upload.fifo"):
         print("No uploads in queue")
         return
 
@@ -464,8 +464,8 @@ def retry_downloads(ctx, limit=1, uuid=None):
     """
     Move SQS messages DLQ to source. Optional: --limit (default 1).
     """
-    downloads_dlq = get_queue_url("downloads-deadletter")
-    downloads_queue = get_queue_url("downloads")
+    downloads_dlq = get_queue_url("download-dlq")
+    downloads_queue = get_queue_url("download")
     __move_messages(downloads_dlq, downloads_queue, limit=limit, uuid=uuid)
 
 
@@ -474,8 +474,8 @@ def retry_uploads(ctx, limit=1, uuid=None):
     """
     Move SQS messages DLQ to source. Optional: --limit (default 1).
     """
-    uploads_dql = get_queue_url("uploads-deadletter.fifo")
-    uploads_queue = get_queue_url("uploads.fifo")
+    uploads_dql = get_queue_url("upload-dlq.fifo")
+    uploads_queue = get_queue_url("upload.fifo")
     __move_messages(uploads_dql, uploads_queue, limit=limit, uuid=uuid)
 
 
@@ -484,8 +484,8 @@ def view_downloads(ctx, limit=20):
     """
     View items in download queues. Optional: --limit (default 20).
     """
-    downloads_queue = get_queue_url("downloads")
-    downloads_dlq = get_queue_url("downloads-deadletter")
+    downloads_queue = get_queue_url("download")
+    downloads_dlq = get_queue_url("download-dlq")
     __view_messages(downloads_queue, limit=limit)
     __view_messages(downloads_dlq, limit=limit)
 
@@ -495,8 +495,8 @@ def view_uploads(ctx, limit=20):
     """
     View items in upload queues. Optional: --limit (default 20).
     """
-    uploads_queue = get_queue_url("uploads.fifo")
-    uploads_dql = get_queue_url("uploads-deadletter.fifo")
+    uploads_queue = get_queue_url("upload.fifo")
+    uploads_dql = get_queue_url("upload-dlq.fifo")
     __view_messages(uploads_queue, limit=limit)
     __view_messages(uploads_dql, limit=limit)
 
@@ -961,6 +961,7 @@ def __set_debug(ctx, debug_val):
 
         if func_env.get('DEBUG') is not None \
                 and int(func_env.get('DEBUG')) == debug_val:
+            print(f"{func_name} DEBUG is off")
             continue
 
         func_env['DEBUG'] = debug_val
