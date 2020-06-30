@@ -6,6 +6,8 @@ from aws_cdk import (
     aws_logs as logs
 )
 
+from . import names
+
 class ZipApi(core.Construct):
 
     def __init__(self, scope: core.Construct, id: str,
@@ -40,7 +42,7 @@ class ZipApi(core.Construct):
             ]
         )
 
-        self.rest_api_name = f"{stack_name}-api"
+        self.rest_api_name = f"{stack_name}-{names.REST_API}"
 
         log_group = logs.LogGroup(self, "apilogs",
             log_group_name=f"/aws/apigateway/{self.rest_api_name}/access_logs",
@@ -112,17 +114,27 @@ class ZipApi(core.Construct):
         )
 
         core.CfnOutput(self, "WebhookEndpoint",
-            export_name=f"{stack_name}-webhook-endpoint-url",
+            export_name=f"{stack_name}-{names.WEBHOOK_ENDPOINT}-url",
             value=endpoint_url("new_recording")
         )
 
         core.CfnOutput(self, "OnDemandEndpoint",
-            export_name=f"{stack_name}-on-demand-endpoint-url",
+            export_name=f"{stack_name}-{names.ON_DEMAND_ENDPOINT}-url",
             value=endpoint_url("ingest")
         )
 
+        core.CfnOutput(self, "WebhookResourceId",
+            export_name=f"{stack_name}-{names.WEBHOOK_ENDPOINT}-resource-id",
+            value=self.new_recording_resource.resource_id
+        )
+
+        core.CfnOutput(self, "OnDemandResourceId",
+            export_name=f"{stack_name}-{names.ON_DEMAND_ENDPOINT}-resource-id",
+            value=self.ingest_resource.resource_id
+        )
+
         core.CfnOutput(self, "RestApiId",
-            export_name=f"{stack_name}-rest-api-id",
+            export_name=f"{stack_name}-{names.REST_API}-id",
             value=self.api.rest_api_id
         )
 

@@ -1,4 +1,5 @@
 from aws_cdk import core, aws_codebuild as codebuild, aws_iam as iam
+from . import names
 
 class ZipCodebuildProject(core.Construct):
 
@@ -16,7 +17,7 @@ class ZipCodebuildProject(core.Construct):
 
         self.project = codebuild.Project(
             self, "project",
-            project_name=f"{stack_name}-codebuild",
+            project_name=f"{stack_name}-{names.CODEBUILD_PROJECT}",
             source=codebuild.Source.git_hub_enterprise(
                 https_clone_url=project_git_url,
                 clone_depth=1
