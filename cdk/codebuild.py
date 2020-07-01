@@ -24,7 +24,7 @@ class ZipCodebuildProject(core.Construct):
             ),
             environment=codebuild.BuildEnvironment(
                 build_image=codebuild.LinuxBuildImage.AMAZON_LINUX_2_2,
-                compute_type=codebuild.ComputeType.SMALL
+                compute_type=codebuild.ComputeType.MEDIUM
             ),
             artifacts=codebuild.Artifacts.s3(
                 name=stack_name,
