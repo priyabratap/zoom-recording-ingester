@@ -167,7 +167,7 @@ def update_requirements(ctx):
     Run a `pip-compile -U` on all requirements files
     """
     req_file = relpath(join(dirname(__file__), 'requirements.in'))
-    ctx.run("pip-compile -r -U {}".format(req_file))
+    ctx.run("pip install -U pip-tools && pip-compile -r -U {}".format(req_file))
     for func in names.FUNCTIONS:
         req_file = relpath(join(dirname(__file__),
                         'function_requirements/{}.in'.format(func)))
