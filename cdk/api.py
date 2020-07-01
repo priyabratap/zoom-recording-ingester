@@ -62,7 +62,7 @@ class ZipApi(core.Construct):
                 data_trace_enabled=True,
                 metrics_enabled=True,
                 logging_level=apigw.MethodLoggingLevel.INFO,
-                stage_name="live"
+                stage_name=names.API_STAGE
             )
         )
 
@@ -106,7 +106,7 @@ class ZipApi(core.Construct):
         def endpoint_url(resource_name):
             return (f"https://{self.api.rest_api_id}.execute-api."
                     f"{core.Stack.of(self).region}.amazonaws.com/"
-                    f"live/{resource_name}")
+                    f"{names.API_STAGE}/{resource_name}")
 
         on_demand_function.add_environment(
             "WEBHOOK_ENDPOINT_URL",
@@ -153,7 +153,7 @@ class ZipApi(core.Construct):
                     namespace="AWS/ApiGateway",
                     dimensions={
                         "ApiName": self.rest_api_name,
-                        "Stage": "live",
+                        "Stage": names.API_STAGE,
                         "Method": "POST",
                         "Resource": resource.path,
                     },
@@ -172,7 +172,7 @@ class ZipApi(core.Construct):
                 namespace="AWS/ApiGateway",
                 dimensions={
                     "ApiName": self.rest_api_name,
-                    "Stage": "live",
+                    "Stage": names.API_STAGE,
                     "Method": "POST",
                     "Resource": self.new_recording_resource.path,
                 },

@@ -66,14 +66,12 @@ def codebuild(ctx, revision):
            "--project-name {} --source-version {} "
            " --environment-variables-override"
            " name='STACK_NAME',value={},type=PLAINTEXT"
-           " name='LAMBDA_RELEASE_ALIAS',value={},type=PLAINTEXT"
            " name='NONINTERACTIVE',value=1") \
         .format(
             profile_arg(),
             project_name,
             revision,
-            STACK_NAME,
-            getenv("LAMBDA_RELEASE_ALIAS")
+            STACK_NAME
             )
 
     res = ctx.run(cmd, hide='out')
@@ -312,7 +310,7 @@ def exec_downloader(ctx, series_id=None, ignore_schedule=False, qualifier=None):
         payload['override_series_id'] = series_id
 
     if not qualifier:
-        qualifier = getenv('LAMBDA_RELEASE_ALIAS')
+        qualifier = names.LAMBDA_RELEASE_ALIAS
 
     cmd = ("aws lambda invoke --function-name='{}-zoom-downloader' "
             "--payload='{}' --qualifier {} output.txt").format(
@@ -336,7 +334,7 @@ def exec_uploader(ctx, qualifier=None):
         return
 
     if qualifier is None:
-        qualifier = getenv('LAMBDA_RELEASE_ALIAS')
+        qualifier = names.LAMBDA_RELEASE_ALIAS
 
     cmd = ("aws lambda invoke --function-name='{}-zoom-uploader' "
            "--qualifier {} outfile.txt").format(STACK_NAME, qualifier)
@@ -760,7 +758,7 @@ def __invoke_api(resource_id, event_body):
 
 
 def __update_release_alias(ctx, func, version, description):
-    print("Setting {} '{}' alias to version {}".format(func, getenv('LAMBDA_RELEASE_ALIAS'), version))
+    print(f"Setting {func} '{names.LAMBDA_RELEASE_ALIAS}' alias to version {version}")
     lambda_function_name = f"{STACK_NAME}-{func}"
     if description is None:
         description = "''"
@@ -770,7 +768,7 @@ def __update_release_alias(ctx, func, version, description):
         .format(
             profile_arg(),
             lambda_function_name,
-            getenv("LAMBDA_RELEASE_ALIAS"),
+            names.LAMBDA_RELEASE_ALIAS,
             version,
             description
         )
@@ -1093,7 +1091,7 @@ def __show_function_status(ctx):
             .format(
                 profile_arg(),
                 lambda_function_name,
-                getenv('LAMBDA_RELEASE_ALIAS')
+                names.LAMBDA_RELEASE_ALIAS
             )
         res = ctx.run(cmd, hide=True)
 
