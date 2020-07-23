@@ -1270,6 +1270,10 @@ def resolve_function_arg(func=None):
 @lru_cache()
 def cfn_exports():
     stack = boto3.resource('cloudformation').Stack(STACK_NAME)
+    if not stack:
+        raise Exception(f"Stack {STACK_NAME} doesn't exist.")
+    if not stack.outputs:
+        raise Exception(f"Stack {STACK_NAME} has no cfn outputs.")
     exports = {
         x["ExportName"]: x["OutputValue"]
         for x in stack.outputs

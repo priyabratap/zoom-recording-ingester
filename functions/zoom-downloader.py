@@ -3,7 +3,8 @@ import json
 import requests
 from os import getenv as env
 from pathlib import Path
-from common import setup_logging, zoom_api_request, TIMESTAMP_FORMAT
+from common import setup_logging, zoom_api_request, TIMESTAMP_FORMAT, \
+    PipelineStatus, set_pipeline_status
 import subprocess
 from pytz import timezone
 from datetime import datetime
@@ -33,6 +34,10 @@ MINIMUM_DURATION = int(env("MINIMUM_DURATION", 2))
 
 
 class PermanentDownloadError(Exception):
+    pass
+
+
+class RetryableDownloadError(Exception):
     pass
 
 
@@ -66,15 +71,27 @@ def handler(event, context):
         dl = Download(sqs, dl_data)
 
         # this is checking for ~total~ duration of the recording as reported
-        # by zoom in the webook payload data. There is a separate check later
+        # by zoom in the webhook payload data. There is a separate check later
         # for the duration potentially different sets of files
         if dl.duration >= MINIMUM_DURATION:
             if dl.oc_series_found(ignore_schedule, override_series_id):
+                set_pipeline_status(
+                    dl_data["uuid"],
+                    PipelineStatus.OC_SERIES_FOUND,
+                )
                 break
             else:
                 failure_msg = {"no_oc_series_found": dl_data}
+                set_pipeline_status(
+                    dl_data["uuid"],
+                    PipelineStatus.NO_OC_SERIES_FOUND,
+                )
         else:
             failure_msg = {"recording_too_short": dl_data}
+            set_pipeline_status(
+                dl_data["uuid"],
+                PipelineStatus.RECORDING_TOO_SHORT,
+            )
 
         # discard and keep checking messages for schedule match
         logger.info(failure_msg)
@@ -93,6 +110,11 @@ def handler(event, context):
         dl.upload_to_s3()
     except PermanentDownloadError as e:
         # push message to deadletter queue, add error reason to message
+        set_pipeline_status(
+            dl.uuid,
+            PipelineStatus.DOWNLOADER_FAILED,
+            extra_data={"permanent_failure": e}
+        )
         message = dl.send_to_deadletter_queue(e)
         download_message.delete()
         logger.error({"Error": e, "Sent to deadletter": message})
@@ -100,6 +122,7 @@ def handler(event, context):
 
     # send a message to the opencast uploader
     message = dl.send_to_uploader_queue()
+    set_pipeline_status(dl.uuid, PipelineStatus.SENT_TO_UPLOADER)
     download_message.delete()
     logger.info({"sqs_message": message})
 
@@ -109,7 +132,7 @@ def retrieve_message(queue):
         MaxNumberOfMessages=1,
         VisibilityTimeout=700
     )
-    if (len(messages) == 0):
+    if not messages:
         return None
 
     return messages[0]
@@ -456,9 +479,14 @@ class SQSMessage():
                     MessageBody=json.dumps(self.message),
                     MessageAttributes=message_attributes
                 )
-        except Exception as e:
-            logger.exception("Error when sending SQS message to queue {}:{}"
-                             .format(self.queue.url, e))
+        except RetryableDownloadError as e:
+            msg = f"Error when sending SQS message to queue {self.queue.url}:{e}"
+            logger.exception(msg)
+            set_pipeline_status(
+                dl.uuid,
+                PipelineStatus.DOWNLOADER_FAILED,
+                extra_data={"retry_failure": msg}
+            )
             raise
 
         logger.debug({"Queue": self.queue.url,
@@ -663,7 +691,7 @@ class ZoomFile:
                 MultipartUpload={"Parts": parts}
             )
             print("Completed multipart upload of {}.".format(self.s3_filename))
-        except Exception as e:
+        except RetryableDownloadError as e:
             logger.exception(
                 "Something went wrong with upload of {}:{}"
                 .format(self.s3_filename, e)
@@ -678,6 +706,12 @@ class ZoomFile:
         if self.file_extension == "mp4":
             if not self.valid_mp4_file():
                 self.stream.close()
-                raise Exception("MP4 failed to transfer.")
+                msg = "MP4 failed to transfer."
+                set_pipeline_status(
+                    dl.uuid,
+                    PipelineStatus.DOWNLOADER_FAILED,
+                    extra_data={"retry_failure": msg}
+                )
+                raise RetryableDownloadError(msg)
 
         self.stream.close()

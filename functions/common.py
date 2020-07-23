@@ -1,7 +1,12 @@
 import jwt
 import time
+import json
 import logging
 import requests
+from enum import Enum
+import boto3
+from botocore.exceptions import ClientError
+from datetime import datetime
 import aws_lambda_logging
 from functools import wraps
 from os import getenv as env
@@ -18,6 +23,26 @@ ZOOM_API_BASE_URL = "https://api.zoom.us/v2/"
 ZOOM_API_KEY = env("ZOOM_API_KEY")
 ZOOM_API_SECRET = env("ZOOM_API_SECRET")
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+PIPELINE_STATUS_TABLE = env("PIPELINE_STATUS_TABLE")
+
+
+class PipelineStatus(Enum):
+    ON_DEMAND_RECEIVED = "ON_DEMAND_RECEIVED"
+    WEBHOOK_RECEIVED = "WEBHOOK_RECEIVED"
+    WEBHOOK_FAILED = "WEBHOOK_FAILED"
+    SENT_TO_DOWNLOADER = "SENT_TO_DOWNLOADER"
+    DOWNLOADER_RECEIVED = "DOWNLOADER_RECEIVED"
+    OC_SERIES_FOUND = "OC_SERIES_FOUND"
+    NO_OC_SERIES_FOUND = "NO_OC_SERIES_FOUND"
+    RECORDING_TOO_SHORT = "RECORDING_TOO_SHORT"
+    # note some failures will be retried
+    # not sure if we want a separate state for a retryable failure
+    DOWNLOADER_FAILED = "DOWNLOADER_FAILED"
+    SENT_TO_UPLOADER = "SENT_TO_UPLOADER"
+    UPLOADER_RECEIVED = "UPLOADER_RECEIVED"
+    SENT_TO_OPENCAST = "SENT_TO_OPENCAST"
+    ALREADY_INGESTED = "ALREADY_INGESTED"
+    UPLOADER_FAILED = "UPLOADER_FAILED"
 
 
 class ZoomApiRequestError(Exception):
@@ -100,3 +125,25 @@ def zoom_api_request(endpoint, key=ZOOM_API_KEY, secret=ZOOM_API_SECRET,
         r.raise_for_status()
 
     return r
+
+
+def set_pipeline_status(uuid, state, optional_data=None):
+    try:
+        dynamodb = boto3.resource("dynamodb")
+        table = dynamodb.Table(PIPELINE_STATUS_TABLE)
+
+        new_item = {
+            "zoom_uuid": uuid,
+            "last update": datetime.strftime(datetime.now(), TIMESTAMP_FORMAT),
+            "status": state.value
+        }
+        logger.debug({"update state": new_item})
+        if optional_data:
+            new_item.update(optional_data)
+
+        table.put_item(Item=new_item)
+    except ClientError as e:
+        error = e.response["Error"]
+        logger.exception("{}: {}".format(error["Code"], error["Message"]))
+    except Exception as e:
+        logger.exception(f"Something went wrong updating pipeline status: {e}")

@@ -9,7 +9,8 @@ from xml.sax.saxutils import escape
 from datetime import datetime
 from hashlib import md5
 from uuid import UUID, uuid4
-from common import TIMESTAMP_FORMAT, setup_logging
+from common import TIMESTAMP_FORMAT, setup_logging, PipelineStatus, \
+    set_pipeline_status
 
 
 import logging
@@ -70,7 +71,7 @@ def handler(event, context):
         MaxNumberOfMessages=1,
         VisibilityTimeout=300
     )
-    if len(messages) == 0:
+    if not messages:
         logger.warning("No upload queue messages available.")
         return
     else:
@@ -101,17 +102,30 @@ def handler(event, context):
     try:
         upload_data = json.loads(upload_message.body)
         logger.debug({"processing": upload_data})
+        set_pipeline_status(
+            upload_data["uuid"],
+            PipelineStatus.UPLOADER_RECEIVED
+        )
 
         wf_id = process_upload(upload_data)
         upload_message.delete()
         if wf_id:
             logger.info(f"Workflow id {wf_id} initiated.")
             # only ingest one per invocation
+            set_pipeline_status(
+                upload_data["uuid"],
+                PipelineStatus.SENT_TO_OPENCAST
+            )
         else:
             logger.info("No workflow initiated.")
 
     except Exception as e:
         logger.exception(e)
+        if upload_data and "uuid" in upload_data:
+            set_pipeline_status(
+                upload_data["uuid"],
+                PipelineStatus.UPLOADER_FAILED
+            )
         raise
 
 
@@ -177,6 +191,10 @@ class Upload:
                     logger.warning(
                         "Episode with deterministic mediapackage id"
                         f" {mpid} already ingested"
+                    )
+                    set_pipeline_status(
+                        self.data["uuid"],
+                        PipelineStatus.ALREADY_INGESTED
                     )
                     mpid = None
             else:

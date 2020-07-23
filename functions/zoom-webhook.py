@@ -1,6 +1,7 @@
 import json
 from os import getenv as env
-from common import setup_logging, TIMESTAMP_FORMAT
+from common import setup_logging, TIMESTAMP_FORMAT, PipelineStatus, \
+    set_pipeline_status
 from datetime import datetime, timedelta
 from pytz import timezone
 import boto3
@@ -82,9 +83,25 @@ def handler(event, context):
 
     try:
         validate_payload(payload)
+        set_pipeline_status(
+            payload["object"]["uuid"],
+            PipelineStatus.WEBHOOK_RECEIVED
+        )
     except BadWebhookData as e:
+        if "object" in payload and "uuid" in payload["object"]:
+            set_pipeline_status(
+                payload["object"]["uuid"],
+                PipelineStatus.WEBHOOK_FAILED,
+                extra_data={"message": "bad webhook data"}
+            )
         return resp_400("Bad data: {}".format(str(e)))
     except NoMp4Files as e:
+        if "object" in payload and "uuid" in payload["object"]:
+            set_pipeline_status(
+                payload["object"]["uuid"],
+                PipelineStatus.WEBHOOK_FAILED,
+                extra_data={"message": "no mp4 files"}
+            )
         resp_callback = INGEST_EVENT_TYPES[zoom_event]
         return resp_callback(str(e))
 
@@ -96,6 +113,10 @@ def handler(event, context):
     else:
         delay = DEFAULT_MESSAGE_DELAY
     send_sqs_message(sqs_message, delay)
+    set_pipeline_status(
+        payload["object"]["uuid"],
+        PipelineStatus.SENT_TO_DOWNLOADER
+    )
 
     return {
         "statusCode": 200,
