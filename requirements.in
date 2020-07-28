@@ -8,6 +8,7 @@ pytest-mock
 pytest-cov
 tox
 black
+pre-commit
 boto3
 requests
 requests-mock
