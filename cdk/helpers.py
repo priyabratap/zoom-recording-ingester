@@ -7,6 +7,7 @@ AWS_PROFILE = _getenv("AWS_PROFILE")
 if AWS_PROFILE:
     boto3.setup_default_session(profile_name=AWS_PROFILE)
 
+
 # wrap the default getenv so we can enforce required vars
 def getenv(param_name, required=True):
     val = _getenv(param_name)

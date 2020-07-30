@@ -113,7 +113,7 @@ class ZipStack(core.Stack):
                 "ZOOM_API_SECRET": zoom_api_secret,
                 "LOCAL_TIME_ZONE": local_time_zone,
                 "DEFAULT_SERIES_ID": default_series_id,
-                "DOWNLOAD_MESSAGES_PER_INVOCATION": download_message_per_invocation,
+                "DOWNLOAD_MESSAGES_PER_INVOCATION": download_message_per_invocation,  # noqa E501
             },
         )
 
@@ -185,21 +185,21 @@ class ZipStack(core.Stack):
             ingest_allowed_ips=ingest_allowed_ips,
         )
 
-        download_event = ZipEvent(
+        ZipEvent(
             self,
             "DownloadEvent",
             function=downloader.function,
             event_rate=downloader_event_rate,
         )
 
-        uploader_event = ZipEvent(
+        ZipEvent(
             self,
             "UploadEvent",
             function=uploader.function,
             event_rate=uploader_event_rate,
         )
 
-        codebuild_project = ZipCodebuildProject(
+        ZipCodebuildProject(
             self,
             "CodebuildProject",
             lambda_code_bucket=lambda_code_bucket,

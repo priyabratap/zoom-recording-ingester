@@ -1,6 +1,5 @@
 import json
 import gzip
-import base64
 import boto3
 from os import getenv as env
 from io import BytesIO
@@ -48,14 +47,14 @@ def handler(event, context):
     message = """
 Error events in log group {}
 
-Log Stream: https://console.aws.amazon.com/cloudwatch/home?region={}#logEventViewer:group={};stream={}
+Log Stream:https://console.aws.amazon.com/cloudwatch/home?region={}#logEventViewer:group={};stream={}
 
 {}
 
 Exception(s):
 
 {}
-"""
+"""  # noqa E501
     message = message.format(
         log_group,
         region,

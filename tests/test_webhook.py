@@ -1,16 +1,14 @@
 import site
-from os.path import dirname, join
-
-site.addsitedir(join(dirname(dirname(__file__)), "functions"))
-
 import pytest
 from importlib import import_module
 from freezegun import freeze_time
 from pytz import timezone
 from datetime import datetime
 import os
-import copy
 import json
+from os.path import dirname, join
+
+site.addsitedir(join(dirname(dirname(__file__)), "functions"))
 
 LOCAL_TIME_ZONE = os.getenv("LOCAL_TIME_ZONE")
 TIMESTAMP_FORMAT = os.getenv("TIMESTAMP_FORMAT")

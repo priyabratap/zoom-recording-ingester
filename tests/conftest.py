@@ -65,6 +65,15 @@ def deep_merge(dict1, dict2):
 @pytest.fixture
 def webhook_payload():
     def _payload_maker(payload_extras=None):
+        recording_files = {
+            "id": "123456-789",
+            "recording_start": "2020-01-09T19:50:46Z",
+            "recording_end": "2020-01-09T20:50:46Z",
+            "download_url": "https://zoom.us/rec/play/some-long-id",
+            "file_type": "MP4",
+            "recording_type": "shared_screen_with_speaker_view",
+        }
+
         payload = {
             "payload": {
                 "object": {
@@ -74,16 +83,7 @@ def webhook_payload():
                     "topic": "Class Section Meeting",
                     "start_time": "2020-01-09T19:50:46Z",
                     "duration": 10,
-                    "recording_files": [
-                        {
-                            "id": "123456-789",
-                            "recording_start": "2020-01-09T19:50:46Z",
-                            "recording_end": "2020-01-09T20:50:46Z",
-                            "download_url": "https://zoom.us/rec/play/some-long-id",
-                            "file_type": "MP4",
-                            "recording_type": "shared_screen_with_speaker_view",
-                        }
-                    ],
+                    "recording_files": [recording_files],
                 }
             },
             "event": "recording.completed",

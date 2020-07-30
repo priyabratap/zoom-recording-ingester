@@ -66,7 +66,7 @@ def handler(event, context):
         dl = Download(sqs, dl_data)
 
         # this is checking for ~total~ duration of the recording as reported
-        # by zoom in the webook payload data. There is a separate check later
+        # by zoom in the webhook payload data. There is a separate check later
         # for the duration potentially different sets of files
         if dl.duration >= MINIMUM_DURATION:
             if dl.oc_series_found(ignore_schedule, override_series_id):
@@ -256,7 +256,9 @@ class Download:
         else:
             schedule = r["Item"]
             # DynamoDB sometimes returns type decimal.Decimal
-            schedule["opencast_series_id"] = str(schedule["opencast_series_id"])
+            schedule["opencast_series_id"] = str(
+                schedule["opencast_series_id"]
+            )
             return schedule
 
     @property
@@ -542,9 +544,8 @@ class ZoomFile:
                     )
                 else:
                     raise PermanentDownloadError(
-                        "{} Zoom returned stream with content type text/html.".format(
-                            error_message
-                        )
+                        f"{error_message} Zoom returned stream"
+                        " with content type text/html."
                     )
 
             # Filename that zoom uses should be found in the response headers

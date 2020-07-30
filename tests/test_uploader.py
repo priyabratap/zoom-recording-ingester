@@ -87,7 +87,7 @@ def test_no_messages_available(handler, mocker, caplog):
     mocker.patch.object(
         uploader, "get_current_upload_count", mocker.Mock(return_value=3)
     )
-    uploader.sqs.get_queue_by_name.return_value.receive_messages.return_value = (
+    uploader.sqs.get_queue_by_name.return_value.receive_messages.return_value = (  # noqa E501
         []
     )
     handler(uploader, {})
@@ -100,7 +100,7 @@ def test_ingestion_error(handler, mocker, upload_message):
         uploader, "get_current_upload_count", mocker.Mock(return_value=3)
     )
     message = upload_message()
-    uploader.sqs.get_queue_by_name.return_value.receive_messages.return_value = [
+    uploader.sqs.get_queue_by_name.return_value.receive_messages.return_value = [  # noqa E501
         message
     ]
     uploader.process_upload = mocker.Mock(side_effect=Exception("boom!"))
@@ -117,11 +117,11 @@ def test_bad_message_body(handler, mocker):
         uploader, "get_current_upload_count", mocker.Mock(return_value=3)
     )
     message = mocker.Mock(body="this is definitely not json")
-    uploader.sqs.get_queue_by_name.return_value.receive_messages.return_value = [
+    uploader.sqs.get_queue_by_name.return_value.receive_messages.return_value = [  # noqa E501
         message
     ]
     with pytest.raises(Exception) as exc_info:
-        res = handler(uploader, {})
+        handler(uploader, {})
     assert exc_info.typename == "JSONDecodeError"
     # make sure the message doesn't get deleted
     assert message.delete.call_count == 0
@@ -133,11 +133,11 @@ def test_workflow_initiated(handler, mocker, upload_message, caplog):
         uploader, "get_current_upload_count", mocker.Mock(return_value=3)
     )
     message = upload_message()
-    uploader.sqs.get_queue_by_name.return_value.receive_messages.return_value = [
+    uploader.sqs.get_queue_by_name.return_value.receive_messages.return_value = [  # noqa E501
         message
     ]
     uploader.process_upload = mocker.Mock(return_value=12345)
-    res = handler(uploader, {})
+    handler(uploader, {})
     assert "12345 initiated" in caplog.messages[-1]
 
 
@@ -147,7 +147,7 @@ def test_workflow_not_initiated(handler, mocker, upload_message, caplog):
         uploader, "get_current_upload_count", mocker.Mock(return_value=3)
     )
     message = upload_message()
-    uploader.sqs.get_queue_by_name.return_value.receive_messages.return_value = [
+    uploader.sqs.get_queue_by_name.return_value.receive_messages.return_value = [  # noqa E501
         message
     ]
     uploader.process_upload = mocker.Mock(return_value=None)
@@ -195,7 +195,7 @@ def test_get_current_upload_count(mocker):
     uploader.aws_lambda.invoke.return_value = {
         "Payload": io.StringIO("no json here either")
     }
-    assert uploader.get_current_upload_count() == None
+    assert uploader.get_current_upload_count() is None
 
 
 def test_file_param_generator():
@@ -205,7 +205,10 @@ def test_file_param_generator():
     cases = [
         [
             ("active_speaker", "gallery_view"),
-            [("active_speaker", "multipart"), ("gallery_view", "presentation")],
+            [
+                ("active_speaker", "multipart"),
+                ("gallery_view", "presentation"),
+            ],
             1,
         ],
         [

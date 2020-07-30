@@ -2,12 +2,6 @@
 
 from aws_cdk import core
 from pathlib import Path
-
-from dotenv import load_dotenv
-
-dotenv_path = Path("..") / ".env"
-load_dotenv(dotenv_path, override=True)
-
 from .helpers import (
     getenv,
     vpc_components,
@@ -17,6 +11,10 @@ from .helpers import (
     aws_account_id,
 )
 from .stack import ZipStack
+from dotenv import load_dotenv
+
+dotenv_path = Path("..") / ".env"
+load_dotenv(dotenv_path, override=True)
 
 STACK_NAME = getenv("STACK_NAME")
 AWS_PROFILE = getenv("AWS_PROFILE", required=False)
@@ -58,7 +56,7 @@ stack_props = {
     "oc_base_url": oc_base_url(),
     "oc_db_url": oc_db_url(),
     "zoom_admin_id": zoom_admin_id(),
-    "project_git_url": "https://github.com/harvard-dce/zoom-recording-ingester.git",
+    "project_git_url": "https://github.com/harvard-dce/zoom-recording-ingester.git",  # noqa E501
 }
 
 app = core.App()

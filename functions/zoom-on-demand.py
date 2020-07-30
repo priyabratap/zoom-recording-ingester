@@ -29,12 +29,12 @@ def resp(status_code, msg=""):
 def handler(event, context):
     """
     This function acts as a relay to the traditional zoom webhook. The webhook
-    function is called by Zoom on a "recording.completed" event, along with data
-    about the recordings. Here we fetch the recording data from the zoom API.
-    The response to that API call is (mostly) identical to the payload zoom
-    sends to the webhook, so we can simply pass it along in our own webhook
-    request, using a "on.demand.ingest" event type and including the series id
-    as "on_demand_series_id".
+    function is called by Zoom on a "recording.completed" event, along with
+    data about the recordings. Here we fetch the recording data from the
+    zoom API. The response to that API call is (mostly) identical to the
+    payload zoom sends to the webhook, so we can simply pass it along in
+    our own webhook request, using a "on.demand.ingest" event type and
+    including the series id as "on_demand_series_id".
     """
 
     logger.info(event)
@@ -50,7 +50,8 @@ def handler(event, context):
 
     if "uuid" not in body:
         return resp(
-            400, "Missing recording uuid field in webhook notification " "body."
+            400,
+            "Missing recording uuid field in webhook notification " "body.",
         )
 
     uuid = body["uuid"]
@@ -85,7 +86,8 @@ def handler(event, context):
     # otherwise return a 500 on any other errors (bad json, bad request, etc)
     except Exception as e:
         return resp(
-            500, "Something went wrong querying the zoom api: {}".format(str(e))
+            500,
+            "Something went wrong querying the zoom api: {}".format(str(e)),
         )
 
     if "recording_files" not in recording_data or not len(
@@ -114,8 +116,8 @@ def handler(event, context):
     }
 
     # series id is an optional param. if not present the download function will
-    # attempt to determine the series id by matching the recording times against
-    # it's known schedule as usual.
+    # attempt to determine the series id by matching the recording times
+    # against it's known schedule as usual.
     if "oc_series_id" in body and body["oc_series_id"]:
         webhook_data["payload"]["on_demand_series_id"] = body["oc_series_id"]
 

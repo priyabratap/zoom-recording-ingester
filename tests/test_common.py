@@ -1,14 +1,18 @@
 import site
-from os.path import dirname, join
-
-site.addsitedir(join(dirname(dirname(__file__)), "functions"))
-
 import pytest
 import jwt
 import time
 import requests
 import requests_mock
-from common import gen_token, zoom_api_request, ZoomApiRequestError
+from os.path import dirname, join
+
+site.addsitedir(join(dirname(dirname(__file__)), "functions"))
+
+from common import (  # noqa E407
+    gen_token,
+    zoom_api_request,
+    ZoomApiRequestError,
+)
 
 
 @pytest.mark.parametrize(
@@ -66,7 +70,9 @@ def test_zoom_api_request_failures():
 
     # test ConnectionError handling
     with requests_mock.mock() as req_mock:
-        req_mock.get(requests_mock.ANY, exc=requests.exceptions.ConnectionError)
+        req_mock.get(
+            requests_mock.ANY, exc=requests.exceptions.ConnectionError
+        )
         error_msg = "Error requesting https://api.zoom.us/v2/meetings"
         with pytest.raises(ZoomApiRequestError, match=error_msg):
             zoom_api_request("meetings")

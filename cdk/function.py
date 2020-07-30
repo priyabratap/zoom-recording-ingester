@@ -24,7 +24,9 @@ class ZipFunction(core.Construct):
         super().__init__(scope, id)
 
         self.stack_name = core.Stack.of(self).stack_name
-        environment = {key: str(val) for key, val in environment.items() if val}
+        environment = {
+            key: str(val) for key, val in environment.items() if val
+        }
 
         function_props = {
             "function_name": f"{self.stack_name}-{name}",
@@ -65,13 +67,13 @@ class ZipFunction(core.Construct):
         )
 
     def add_monitoring(self, monitoring):
+        # default comparison operator >=
         errors_alarm = cloudwatch.Alarm(
             self,
             "ErrorsAlarm",
             metric=self.function.metric_errors(),
             alarm_name=f"{self.function.function_name}-errors",
             statistic="sum",
-            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
             threshold=1,
             period=core.Duration.minutes(1),
             evaluation_periods=1,
@@ -87,7 +89,7 @@ class ZipWebhookFunction(ZipFunction):
     def add_monitoring(self, monitoring):
         super().add_monitoring(monitoring)
 
-        recording_completed = logs.MetricFilter(
+        logs.MetricFilter(
             self,
             "RecordingCompletedLogMetric",
             log_group=self.function.log_group,
@@ -101,7 +103,7 @@ class ZipWebhookFunction(ZipFunction):
             ),
         )
 
-        meeting_started = logs.MetricFilter(
+        logs.MetricFilter(
             self,
             "MeetingStartedLogMetric",
             log_group=self.function.log_group,
@@ -113,7 +115,7 @@ class ZipWebhookFunction(ZipFunction):
             ),
         )
 
-        meeting_ended = logs.MetricFilter(
+        logs.MetricFilter(
             self,
             "MeetingEndedLogMetric",
             log_group=self.function.log_group,
@@ -136,14 +138,14 @@ class ZipDownloaderFunction(ZipFunction):
             metric=self.function.metric_invocations(),
             alarm_name=f"{self.function.function_name}-invocations",
             statistic="sum",
-            comparison_operator=cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
+            comparison_operator=cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,  # noqa: E501
             threshold=1,
             period=core.Duration.minutes(1440),
             evaluation_periods=1,
         )
         monitoring.add_alarm_action(invocations_alarm)
 
-        recording_duration = logs.MetricFilter(
+        logs.MetricFilter(
             self,
             "RecordingDurationLogMetric",
             log_group=self.function.log_group,
@@ -155,7 +157,7 @@ class ZipDownloaderFunction(ZipFunction):
             ),
         )
 
-        recording_skipped = logs.MetricFilter(
+        logs.MetricFilter(
             self,
             "RecordingSkippedLogMetric",
             log_group=self.function.log_group,
@@ -170,7 +172,7 @@ class ZipUploaderFunction(ZipFunction):
     def add_monitoring(self, monitoring):
         super().add_monitoring(monitoring)
 
-        minutes_in_pipeline = logs.MetricFilter(
+        logs.MetricFilter(
             self,
             "MinutesInPipelineLogMetric",
             log_group=self.function.log_group,
@@ -182,7 +184,7 @@ class ZipUploaderFunction(ZipFunction):
             ),
         )
 
-        workflow_initiated = logs.MetricFilter(
+        logs.MetricFilter(
             self,
             "WorkflowInitiatedLogMetric",
             log_group=self.function.log_group,

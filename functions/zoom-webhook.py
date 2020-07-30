@@ -119,18 +119,16 @@ def validate_payload(payload):
         for field in required_payload_fields:
             if field not in payload.keys():
                 raise BadWebhookData(
-                    "Missing required payload field '{}'. Keys found: {}".format(
-                        field, payload.keys()
-                    )
+                    f"Missing required payload field '{field}'."
+                    f" Keys found: {payload.keys()}"
                 )
 
         obj = payload["object"]
         for field in required_object_fields:
             if field not in obj.keys():
                 raise BadWebhookData(
-                    "Missing required object field '{}'. Keys found: {}".format(
-                        field, obj.keys()
-                    )
+                    f"Missing required object field '{field}'."
+                    f" Keys found: {obj.keys()}"
                 )
 
         files = obj["recording_files"]

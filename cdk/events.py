@@ -8,7 +8,6 @@ from aws_cdk import (
 class ZipEvent(core.Construct):
     def __init__(self, scope: core.Construct, id: str, function, event_rate):
         super().__init__(scope, id)
-        stack_name = core.Stack.of(self).stack_name
         self.rule = events.Rule(
             self,
             "rule",

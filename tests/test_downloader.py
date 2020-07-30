@@ -315,7 +315,9 @@ class TestDownloader(unittest.TestCase):
 
         for start_time, schedule, expected in cases:
             time_object = datetime.strptime(start_time, TIMESTAMP_FORMAT)
-            with patch.object(downloader.Download, "_class_schedule", schedule):
+            with patch.object(
+                downloader.Download, "_class_schedule", schedule
+            ):
                 with patch.object(
                     downloader.Download, "_created_local", time_object
                 ):
@@ -331,10 +333,6 @@ class TestDownloader(unittest.TestCase):
         override_id = 12345678
         schedule_id = 44444444
         default_id = 20200299999
-
-        skipped_msg = "Recording duration shorter than {} minutes".format(
-            downloader.MINIMUM_DURATION
-        )
 
         override_msg = "Using override series id '{}'".format(override_id)
 
@@ -352,7 +350,13 @@ class TestDownloader(unittest.TestCase):
             # duration filtering cases
             ({"duration": 2}, (override_id, False), None, True, override_msg),
             ({"duration": 3}, (override_id, False), None, True, override_msg),
-            ({"duration": 100}, (override_id, False), None, True, override_msg),
+            (
+                {"duration": 100},
+                (override_id, False),
+                None,
+                True,
+                override_msg,
+            ),
             # override series id with ignore schedule
             (
                 SAMPLE_MESSAGE_BODY,
@@ -445,7 +449,9 @@ def test_zoom_filename(mocker):
     the stream header and check for appropriate error messages.
     """
     mp4_file = "zoom_file.mp4"
-    location_header = {"Location": "https://zoom.us/{}?123456".format(mp4_file)}
+    location_header = {
+        "Location": "https://zoom.us/{}?123456".format(mp4_file)
+    }
     content_disposition_header = {
         "Content-Disposition": "key={}".format(mp4_file)
     }

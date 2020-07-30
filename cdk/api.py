@@ -28,8 +28,9 @@ class ZipApi(core.Construct):
                     effect=iam.Effect.ALLOW,
                     actions=["execute-api:Invoke"],
                     principals=[iam.AnyPrincipal()],
-                    # note that the policy is a prop of the api which cannot reference itself
-                    # see the Cloudformation documentation for api gateway policy attribute
+                    # note that the policy is a prop of the api which cannot
+                    # reference itself see the Cloudformation documentation
+                    # for api gateway policy attribute
                     resources=[core.Fn.join("", ["execute-api:/", "*"])],
                 ),
                 iam.PolicyStatement(
@@ -188,7 +189,6 @@ class ZipApi(core.Construct):
                 statistic="sum",
                 threshold=1,
                 evaluation_periods=1,
-                comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
             )
             monitoring.add_alarm_action(alarm)
 
@@ -209,6 +209,5 @@ class ZipApi(core.Construct):
             statistic="avg",
             threshold=10000,
             evaluation_periods=3,
-            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         )
         monitoring.add_alarm_action(webhook_latency_alarm)

@@ -39,9 +39,9 @@ session.auth = HTTPDigestAuth(OPENCAST_API_USER, OPENCAST_API_PASSWORD)
 session.headers.update(
     {
         "X-REQUESTED-AUTH": "Digest",
-        # TODO: it's possible this header is not necessary for the endpoints being
-        # used here. It seems like for Opencast endpoints where the header *is*
-        # necessary the correct value is actually
+        # TODO: it's possible this header is not necessary for the endpoints
+        # being used here. It seems like for Opencast endpoints where the
+        # header *is* necessary the correct value is actually
         # "X-Opencast-Matterhorn-Authorization"
         "X-Opencast-Matterhorn-Authentication": "true",
     }
@@ -320,7 +320,7 @@ class Upload:
         try:
             file_params = fpg.generate()
         except Exception as e:
-            logger.exception("Failed to generate file upload params")
+            logger.exception(f"Failed to generate file upload params: {e}")
             raise
 
         params.extend(file_params)
@@ -430,12 +430,21 @@ class FileParamGenerator(object):
 
         for s3_file in self.s3_filenames[view]:
             logger.info(
-                {"adding": {"s3_file": s3_file, "view": view, "flavor": flavor}}
+                {
+                    "adding": {
+                        "s3_file": s3_file,
+                        "view": view,
+                        "flavor": flavor,
+                    }
+                }
             )
             self._params.extend(
                 [
                     ("flavor", (None, escape(flavor))),
-                    ("mediaUri", (None, self._generate_presigned_url(s3_file))),
+                    (
+                        "mediaUri",
+                        (None, self._generate_presigned_url(s3_file)),
+                    ),
                 ]
             )
             self._used_views.append(view)

@@ -1,11 +1,10 @@
 import site
+from importlib import import_module
+import json
+import requests_mock
 from os.path import dirname, join
 
 site.addsitedir(join(dirname(dirname(__file__)), "functions"))
-from importlib import import_module
-
-import json
-import requests_mock
 
 on_demand = import_module("zoom-on-demand")
 
@@ -32,7 +31,9 @@ def test_missing_uuid(handler):
 
 
 def test_bad_uuid_url(handler):
-    res = handler(on_demand, {"body": json.dumps({"uuid": "https://blahblah"})})
+    res = handler(
+        on_demand, {"body": json.dumps({"uuid": "https://blahblah"})}
+    )
     assert res["statusCode"] == 404
     resp_body = json.loads(res["body"])
     assert "Zoom URL is malformed" in resp_body["message"]
@@ -44,7 +45,7 @@ def test_good_uuid_url(handler, mocker, caplog):
     mocker.patch.object(on_demand, "zoom_api_request", mock_zoom_api_request)
 
     good_url = "https://foo.com?meeting_id=abcde12345"
-    res = handler(on_demand, {"body": json.dumps({"uuid": good_url})})
+    handler(on_demand, {"body": json.dumps({"uuid": good_url})})
     assert any(
         item == "Got recording uuid: 'abcde12345'" for item in caplog.messages
     )
@@ -90,7 +91,7 @@ def test_on_demand_happy_trail(handler, mocker):
         handler_event = {
             "body": json.dumps({"uuid": "foo", "oc_series_id": "bar"})
         }
-        res = handler(on_demand, handler_event)
+        handler(on_demand, handler_event)
     assert m.called
     mock_req = m.request_history[0]
     assert mock_req.method == "POST"

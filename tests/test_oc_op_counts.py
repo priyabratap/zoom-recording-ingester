@@ -1,11 +1,9 @@
 import site
+from importlib import import_module
 from os.path import dirname, join
 
 site.addsitedir(join(dirname(dirname(__file__)), "functions"))
-from importlib import import_module
 
-import json
-import requests_mock
 
 oc_op_counts = import_module("opencast-op-counts")
 
